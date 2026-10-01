@@ -4,7 +4,8 @@
 
 * **1.(워커힐) 호텔 · 성과관리**
   * [1.1 매출·수익성 지표 흐름](hotel-metrics.md)
-  * [1.2 온톨로지 설계 방안](hotel-ontology.md)
+  * [1.2 HQ 전개표](hq-rollout.md)
+  * [1.3 온톨로지 설계 방안](hotel-ontology.md)
 
 * **2.(SKPC) 인프라**
   * [2.1 쿠버네티스 · 클라우드](infra/kubernetes.md)
