@@ -215,6 +215,41 @@ body.resizing .content { transition: none; }
       ]
     };
   </script>
+  <script>
+  (function () {
+    // 일부 통신사/공유기 프록시가 _sidebar.md · *.md 응답을 오래 캐싱해서
+    // 배포 후에도 옛 내용이 보이는 문제가 있어, docsify가 보내는 모든 같은 출처
+    // 요청에 매번 바뀌는 쿼리스트링을 붙여 캐시를 무력화한다.
+    function shouldBust(url) {
+      if (typeof url !== 'string' || !url) return false;
+      if (/^https?:\/\//i.test(url) && url.indexOf(location.origin) !== 0) return false; // 외부 CDN은 건드리지 않음
+      return !/\.(js|css|png|jpg|jpeg|svg|ico|woff2?|ttf)(\?|$)/i.test(url);
+    }
+    function bust(url) {
+      if (!shouldBust(url)) return url;
+      return url + (url.indexOf('?') === -1 ? '?' : '&') + '_=' + Date.now();
+    }
+
+    if (window.fetch) {
+      var origFetch = window.fetch;
+      window.fetch = function (input, init) {
+        if (typeof input === 'string') {
+          input = bust(input);
+        } else if (input && typeof input.url === 'string' && shouldBust(input.url)) {
+          input = new Request(bust(input.url), input);
+        }
+        return origFetch(input, init);
+      };
+    }
+
+    var origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      var args = Array.prototype.slice.call(arguments);
+      if (typeof url === 'string') args[1] = bust(url);
+      return origOpen.apply(this, args);
+    };
+  })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script>mermaid.initialize({ startOnLoad: false, theme: 'neutral' });</script>
   <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
