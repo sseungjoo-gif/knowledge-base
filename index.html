@@ -63,6 +63,22 @@ body.resizing .content { transition: none; }
     .sidebar .search input, .sidebar .search input::placeholder { color: #333 !important; }
     /* 1레벨 헤더는 링크가 없어 클릭으로 펼칠 수 없으므로, 2레벨은 항상 표시 */
     .sidebar > .sidebar-nav > ul > li > ul { display: block !important; }
+    /* 3레벨부터는 클릭해서 펼치고/접는 아코디언 (기본은 접힘) */
+    .sidebar-nav li.kb-has-children > ul { display: none; }
+    .sidebar-nav li.kb-has-children.kb-expanded > ul { display: block; }
+    .sidebar-nav li.kb-has-children { cursor: pointer; }
+    .sidebar-nav li.kb-has-children > a::after,
+    .sidebar-nav li.kb-has-children > p::after {
+      content: '▸';
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 10px;
+      transition: transform .15s;
+    }
+    .sidebar-nav li.kb-has-children.kb-expanded > a::after,
+    .sidebar-nav li.kb-has-children.kb-expanded > p::after {
+      transform: rotate(90deg);
+    }
 
     /* ── 본문 ── */
     .markdown-section { max-width: 920px; padding: 2rem 2.5rem 5rem; }
@@ -243,8 +259,46 @@ body.resizing .content { transition: none; }
   resizer.addEventListener('dblclick', function () { apply(290); });
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css">
+<script>
+(function () {
+  // 사이드바 3레벨 이상(2레벨까지는 항상 펼침)은 클릭한 항목만 펼치고,
+  // 같은 항목을 다시 클릭하면 접히는 아코디언으로 직접 제어한다.
+  function markDeep(li) {
+    var childUl = li.querySelector(':scope > ul');
+    if (!childUl) return;
+    li.classList.add('kb-has-children');
+    Array.prototype.forEach.call(childUl.children, markDeep);
+  }
+
+  function markSidebar() {
+    var topUl = document.querySelector('.sidebar-nav > ul');
+    if (!topUl) return;
+    Array.prototype.forEach.call(topUl.children, function (level1Li) {
+      var level2Ul = level1Li.querySelector(':scope > ul');
+      if (!level2Ul) return;
+      Array.prototype.forEach.call(level2Ul.children, markDeep); // 레벨 2의 자식(레벨 3)부터 토글 대상
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var li = e.target.closest('.sidebar-nav li');
+    if (!li || !li.classList.contains('kb-has-children')) return;
+
+    var willExpand = !li.classList.contains('kb-expanded');
+    var siblings = li.parentElement.children;
+    Array.prototype.forEach.call(siblings, function (sib) {
+      if (sib !== li) sib.classList.remove('kb-expanded');
+    });
+    li.classList.toggle('kb-expanded', willExpand);
+  });
+
+  if (window.$docsify) {
+    window.$docsify.plugins = (window.$docsify.plugins || []).concat(function (hook) {
+      hook.doneEach(function () { markSidebar(); });
+    });
+  }
+})();
+</script>
 
 <script>
 (function () {
