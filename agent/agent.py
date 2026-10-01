@@ -1,0 +1,74 @@
+"""워커힐 호텔 성과관리 추정/추론 에이전트.
+
+1.3 온톨로지(hotel-ontology.md)를 기준으로 동작한다:
+- 숫자 계산은 전부 도구(tools.py → metrics.py)가 하고, 모델은 해석/진단만 한다.
+- 온톨로지 6장의 함정 방지 제약을 시스템 프롬프트로도 한 번 더 명시해 둔다.
+
+실행:
+    cd "D:\\knowledge\\files (2)"
+    py -m agent.agent "RevPAR는 그대로인데 왜 실수익이 떨어졌어?"
+"""
+
+import sys
+
+import anthropic
+
+from .tools import ALL_TOOLS
+
+SYSTEM_PROMPT = """\
+당신은 워커힐 호텔의 성과관리 추정/추론 에이전트입니다.
+1.3 온톨로지(hotel-ontology.md) 기준으로 동작하며, 아래 원칙을 반드시 지킵니다.
+
+1. 숫자 계산은 직접 하지 말고, 반드시 제공된 도구를 호출해서 얻습니다.
+   도구가 없는 계산(예: 임의의 산술)을 본문에서 직접 수행하지 않습니다.
+2. 어떤 기간/부문 데이터가 있는지 모르면 먼저 list_available_data를 호출합니다.
+3. 다음 6가지 제약을 항상 지킵니다 (1.3 온톨로지 6장과 동일):
+   ① 매출만 보고 수수료 유출을 판단하지 않습니다 — RevPAR와 NRevPAR를 항상 같이 봅니다.
+   ② 부문 이익을 말할 때는 배부 전(preAllocation)·배부 후(postAllocation)를 반드시 구분해서 밝힙니다.
+   ③ GOPPAR는 호텔 전체 지표입니다. 특정 부문(F&B 등)의 성과를 GOPPAR로 평가하지 않습니다.
+   ④ Flow-through는 반드시 두 기간 비교가 있어야 계산됩니다. 한 기간만으로는 계산하지 않습니다.
+   ⑤ 식자재 원가율은 표준원가율과 반드시 같이 제시합니다.
+   ⑥ 고객 데이터(Attach Rate·CLV)는 이번 샘플에 없으므로, 질문이 그쪽이면 데이터가 없다고 명확히 밝힙니다.
+4. 답변은 1.1 문서(hotel-metrics.md) 톤처럼, 결론 → 원인 분해(물량/단가/채널/원가 등) 순으로 설명합니다.
+5. 추정이 필요한 질문(예: "다음 달엔 어떨까")에는 최근 추세(여러 기간 도구 호출 결과)를 근거로 들되,
+   "추정"이라는 점과 그 근거를 명시적으로 밝힙니다. 근거 없는 숫자를 단정적으로 말하지 않습니다.
+"""
+
+
+def ask(question: str) -> None:
+    client = anthropic.Anthropic()
+
+    runner = client.beta.messages.tool_runner(
+        model="claude-opus-5",
+        max_tokens=16000,
+        system=SYSTEM_PROMPT,
+        tools=ALL_TOOLS,
+        messages=[{"role": "user", "content": question}],
+    )
+
+    for message in runner:
+        for block in message.content:
+            if block.type == "text":
+                print(block.text)
+            elif block.type == "tool_use":
+                print(f"\n[도구 호출] {block.name}({block.input})")
+
+
+def main() -> None:
+    if len(sys.argv) > 1:
+        ask(" ".join(sys.argv[1:]))
+        return
+
+    print("워커힐 호텔 추정/추론 에이전트 (종료: Ctrl+C)")
+    while True:
+        try:
+            question = input("\n질문> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not question:
+            continue
+        ask(question)
+
+
+if __name__ == "__main__":
+    main()
