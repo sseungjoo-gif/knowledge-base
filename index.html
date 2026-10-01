@@ -276,7 +276,11 @@ body.resizing .content { transition: none; }
     Array.prototype.forEach.call(topUl.children, function (level1Li) {
       var level2Ul = level1Li.querySelector(':scope > ul');
       if (!level2Ul) return;
-      Array.prototype.forEach.call(level2Ul.children, markDeep); // 레벨 2의 자식(레벨 3)부터 토글 대상
+      Array.prototype.forEach.call(level2Ul.children, function (level2Li) {
+        var level3Ul = level2Li.querySelector(':scope > ul');
+        if (!level3Ul) return;
+        Array.prototype.forEach.call(level3Ul.children, markDeep); // 레벨 3부터 토글 대상 (레벨 2는 항상 펼침, 토글 제외)
+      });
     });
   }
 
@@ -284,13 +288,18 @@ body.resizing .content { transition: none; }
     var li = e.target.closest('.sidebar-nav li');
     if (!li || !li.classList.contains('kb-has-children')) return;
 
+    // 하위 메뉴가 있는 항목은 클릭 시 펼침/접힘만 하고, 페이지 이동은 하지 않는다
+    // (이동이 함께 일어나면 사이드바가 다시 그려지면서 펼침 상태가 꼬임)
+    e.preventDefault();
+    e.stopPropagation();
+
     var willExpand = !li.classList.contains('kb-expanded');
     var siblings = li.parentElement.children;
     Array.prototype.forEach.call(siblings, function (sib) {
       if (sib !== li) sib.classList.remove('kb-expanded');
     });
     li.classList.toggle('kb-expanded', willExpand);
-  });
+  }, true);
 
   if (window.$docsify) {
     window.$docsify.plugins = (window.$docsify.plugins || []).concat(function (hook) {
