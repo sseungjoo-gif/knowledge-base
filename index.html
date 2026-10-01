@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HELLO</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-plugin-flexible-alerts@1/dist/style.min.css">
+  <style>
+    :root {
+      --theme-color: #1F3864;
+      --sidebar-width: 290px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* 드래그 손잡이 */
+    #sidebarResizer {
+      position: fixed;
+      top: 0;
+      left: 290px;              /* 초기 사이드바 너비와 동일하게 */
+      width: 6px;
+      height: 100vh;
+      cursor: col-resize;
+      z-index: 100;
+     background: transparent;
+     transition: background .15s;
+    }
+    #sidebarResizer:hover,
+    #sidebarResizer.dragging { background: #c8d4e3; }
+
+/* 드래그 중 텍스트 선택 방지 */
+body.resizing { user-select: none; cursor: col-resize; }
+body.resizing .sidebar,
+body.resizing .content { transition: none; }
+
+    /* ── 사이드바 ── */
+    .sidebar {
+      width: 290px;
+      border: 1px solid #d6dde8;
+      border-radius: 8px;
+      margin: 12px 0 12px 12px;
+      height: calc(100vh - 24px);
+      background: #fbfcfd;
+    }
+    .content { left: 352px; }        /* 340 + margin 12 */
+    .sidebar-toggle { width: 340px; }
+    .sidebar > h1 { margin: 1.5rem 0 1rem; font-size: 1.15rem; }
+    .sidebar > h1 a { font-weight: 700; }
+    .sidebar ul li a { font-size: 13px; padding: 2px 0; }
+    .sidebar ul li p { font-size: 14px; color: #6b7280; margin: 1.1rem 0 .3rem; letter-spacing: .02em; }
+    .sidebar ul li.active > a { font-weight: 600; }
+    .sidebar ul li p { font-weight: 700; color: #1F3864; }
+    .sidebar > .sidebar-nav > ul > li > a { font-weight: 700; font-size: 18px; }
+    .sidebar-nav > ul > li > a { font-weight: 700 !important; }
+    .sidebar > .sidebar-nav > ul > li > ul > li > a { font-weight: 400; color: #4a5568; }
+    .sidebar .search { background: transparent; border-bottom: 1px solid #d6e4f0; }
+    .sidebar .search input { background: #ffffff; }
+    .sidebar > .sidebar-nav > ul > li > a:hover { background: #dceafa; }
+    /* 1레벨 헤더는 링크가 없어 클릭으로 펼칠 수 없으므로, 2레벨은 항상 표시 */
+    .sidebar > .sidebar-nav > ul > li > ul { display: block !important; }
+
+    /* ── 본문 ── */
+    .markdown-section { max-width: 920px; padding: 2rem 2.5rem 5rem; }
+    .markdown-section p, .markdown-section li { line-height: 1.75; }
+    .markdown-section h1 { font-size: 1.85rem; margin: 2rem 0 1rem; }
+    .markdown-section h2 {
+      font-size: 1.35rem; margin-top: 2.8rem;
+      padding: 8px 14px;
+      background: #1F3864;
+      border-radius: 4px;
+    }
+    .markdown-section h2, .markdown-section h2 * {
+      color: #ffffff !important;
+    }
+    .markdown-section h3 { font-size: 1.1rem; margin-top: 1.9rem; }
+    .markdown-section h3::before {
+      content: "▸";
+      color: var(--theme-color);
+      margin-right: 6px;
+    }
+    .markdown-section h4 { font-size: 1rem; color: #444; }
+
+    /* ── 표 ── */
+    .markdown-section table { display: table; width: 100%; font-size: 14px; border-collapse: collapse; }
+    .markdown-section th { background: #dceafa; font-weight: 600; }
+    .markdown-section tr:nth-child(2n) { background: #fafbfc; }
+    .markdown-section td, .markdown-section th { padding: 9px 12px; }
+
+    /* ── 인용 ── */
+    .markdown-section blockquote {
+      border-left: 4px solid var(--theme-color);
+      border: 1px solid #d6dde8;          /* 전체 테두리 추가 */
+      border-left: 4px solid var(--theme-color);
+      background: #f6f8fc;
+      padding: 12px 18px;
+      margin: 1.2rem 0;
+      border-radius: 4px;
+    }
+    .markdown-section blockquote p { font-style: normal; font-weight: 400; }
+
+    /* ── 코드 ── */
+    .markdown-section code { font-size: 13px; }
+    .markdown-section pre {
+      background: #f6f8fa;
+      border: 1px solid #d6dde8;
+      border-radius: 6px;
+    }
+    .markdown-section code {
+      background: #f2f4f7;
+      border: 1px solid #d6dde8;
+      border-radius: 3px;
+      padding: 1px 5px;
+    }
+
+    /* ── 접기/펼치기 ── */
+    .markdown-section details {
+      background: #fafbfc; border: 1px solid #e3e7ed;
+      border-radius: 6px; padding: 10px 16px; margin: 1rem 0;
+    }
+    .markdown-section details summary {
+      cursor: pointer; font-weight: 600; color: var(--theme-color);
+      outline: none; padding: 2px 0;
+    }
+    .markdown-section details[open] summary { margin-bottom: .6rem; }
+
+    /* ── 다이어그램 ── */
+    .mermaid { text-align: center; margin: 1.4rem 0; }
+
+    /* ── 체크리스트 ── */
+    .markdown-section input[type="checkbox"] { margin-right: 6px; }
+
+    /* ── 인쇄 ── */
+    @media print {
+      .sidebar, .sidebar-toggle, .docsify-pagination-container { display: none; }
+      .content { left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">불러오는 중…</div>
+  <script>
+    window.$docsify = {
+      name: '',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      maxLevel: 4,
+      sidebarDisplayLevel: 2,
+      search: {
+        placeholder: '검색…',
+        noData: '결과가 없습니다',
+        depth: 4,
+        paths: 'auto'
+      },
+      copyCode: { buttonText: '복사', successText: '복사됨' },
+      pagination: { previousText: '이전', nextText: '다음', crossChapter: true },
+      alias: { '/.*/_sidebar.md': '/_sidebar.md' },
+      'flexible-alerts': {
+        style: 'callout',
+        note:      { label: '참고' },
+        tip:       { label: '팁' },
+        warning:   { label: '주의' },
+        attention: { label: '중요' }
+      },
+      markdown: {
+        renderer: {
+          code: function (code, lang) {
+            if (lang === 'mermaid') {
+              return '<div class="mermaid">' + code + '</div>';
+            }
+            return this.origin.code.apply(this, arguments);
+          }
+        }
+      },
+      plugins: [
+        function (hook) {
+          hook.doneEach(function () {
+            if (window.mermaid) {
+              window.mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+            }
+          });
+        }
+      ]
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: false, theme: 'neutral' });</script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-tabs@1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-plugin-flexible-alerts@1"></script>
+
+  <div id="sidebarResizer"></div>
+<script>
+(function () {
+  var MIN = 200, MAX = 640;
+  var resizer = document.getElementById('sidebarResizer');
+  var dragging = false;
+
+  function apply(w) {
+    var sidebar = document.querySelector('.sidebar');
+    var content = document.querySelector('.content');
+    var toggle  = document.querySelector('.sidebar-toggle');
+    if (sidebar) sidebar.style.width = w + 'px';
+    if (content) content.style.left  = w + 'px';
+    if (toggle)  toggle.style.width  = w + 'px';
+    resizer.style.left = w + 'px';
+    localStorage.setItem('kbSidebarWidth', w);
+  }
+
+  // 저장된 너비 복원
+  var saved = parseInt(localStorage.getItem('kbSidebarWidth'), 10);
+  if (saved) setTimeout(function () { apply(saved); }, 100);
+
+  resizer.addEventListener('mousedown', function (e) {
+    dragging = true;
+    resizer.classList.add('dragging');
+    document.body.classList.add('resizing');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function (e) {
+    if (!dragging) return;
+    var w = Math.min(MAX, Math.max(MIN, e.clientX));
+    apply(w);
+  });
+
+  document.addEventListener('mouseup', function () {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.classList.remove('resizing');
+  });
+
+  // 더블클릭하면 기본값으로 복귀
+  resizer.addEventListener('dblclick', function () { apply(290); });
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/sidebar.min.css">
+
+<script>
+(function () {
+  // 본문 안의 같은 페이지 앵커 링크(#...)는 docsify 라우팅을 거치면
+  // auto2top 설정 때문에 스크롤 후 다시 맨 위로 튕겨나가므로,
+  // 직접 가로채서 해당 제목으로 스크롤 처리한다.
+  function normalize(s) {
+    return s.toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+  }
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href^="#"]');
+    if (!a || !a.closest('.markdown-section')) return;
+
+    // docsify가 렌더링 시 href를 "#/현재경로?id=xxx" 형태로 바꿔두므로
+    // id= 뒤쪽만 추출한다 (없으면 '#' 뒤 전체를 그대로 사용).
+    var href = a.getAttribute('href');
+    var qIdx = href.indexOf('?id=');
+    var raw = decodeURIComponent(qIdx !== -1 ? href.slice(qIdx + 4) : href.slice(1));
+    var target = document.getElementById(raw);
+
+    if (!target) {
+      // docsify가 실제로 생성한 id의 하이픈/기호가 미세하게 다를 수 있으므로
+      // 문자·숫자만 남긴 정규화 비교로 대상 제목을 찾는다.
+      var wanted = normalize(raw);
+      var headings = document.querySelectorAll('.markdown-section h1[id], .markdown-section h2[id], .markdown-section h3[id], .markdown-section h4[id]');
+      for (var i = 0; i < headings.length; i++) {
+        if (normalize(headings[i].id) === wanted) { target = headings[i]; break; }
+      }
+    }
+    if (!target) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, true); // 캡처 단계에서 먼저 가로채 docsify 자체 라우팅보다 우선 처리
+})();
+</script>
+</body>
+</html>
