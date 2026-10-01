@@ -42,22 +42,25 @@ body.resizing .content { transition: none; }
       border-radius: 8px;
       margin: 12px 0 12px 12px;
       height: calc(100vh - 24px);
-      background: #fbfcfd;
+      background: #1F3864;
     }
     .content { left: 352px; }        /* 340 + margin 12 */
     .sidebar-toggle { width: 340px; }
     .sidebar > h1 { margin: 1.5rem 0 1rem; font-size: 1.15rem; }
     .sidebar > h1 a { font-weight: 700; }
     .sidebar ul li a { font-size: 13px; padding: 2px 0; }
-    .sidebar ul li p { font-size: 14px; color: #6b7280; margin: 1.1rem 0 .3rem; letter-spacing: .02em; }
+    .sidebar ul li p { font-size: 14px; margin: 1.1rem 0 .3rem; letter-spacing: .02em; }
     .sidebar ul li.active > a { font-weight: 600; }
-    .sidebar ul li p { font-weight: 700; color: #1F3864; }
+    .sidebar ul li p { font-weight: 700; }
     .sidebar > .sidebar-nav > ul > li > a { font-weight: 700; font-size: 18px; }
     .sidebar-nav > ul > li > a { font-weight: 700 !important; }
-    .sidebar > .sidebar-nav > ul > li > ul > li > a { font-weight: 400; color: #4a5568; }
-    .sidebar .search { background: transparent; border-bottom: 1px solid #d6e4f0; }
+    .sidebar > .sidebar-nav > ul > li > ul > li > a { font-weight: 400; }
+    .sidebar .search { background: transparent; border-bottom: 1px solid rgba(255,255,255,.25); }
     .sidebar .search input { background: #ffffff; }
-    .sidebar > .sidebar-nav > ul > li > a:hover { background: #dceafa; }
+    .sidebar > .sidebar-nav > ul > li > a:hover { background: rgba(255,255,255,.15); }
+    /* 사이드바 배경을 본문 h2와 같은 남색으로 쓰므로, 글자는 흰색으로 (검색창 입력칸은 제외) */
+    .sidebar, .sidebar * { color: #ffffff !important; }
+    .sidebar .search input, .sidebar .search input::placeholder { color: #333 !important; }
     /* 1레벨 헤더는 링크가 없어 클릭으로 펼칠 수 없으므로, 2레벨은 항상 표시 */
     .sidebar > .sidebar-nav > ul > li > ul { display: block !important; }
 
