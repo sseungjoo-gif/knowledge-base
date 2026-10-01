@@ -60,6 +60,17 @@ body.resizing .content { transition: none; }
     .sidebar > .sidebar-nav > ul > li > a:hover { background: rgba(255,255,255,.15); }
     /* 사이드바 배경을 본문 h2와 같은 남색으로 쓰므로, 글자는 흰색으로 (검색창 입력칸은 제외) */
     .sidebar, .sidebar * { color: #ffffff !important; }
+    /* 1레벨 메뉴끼리 구분선 */
+    .sidebar > .sidebar-nav > ul > li {
+      border-top: 1px solid rgba(255, 255, 255, .2);
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    .sidebar > .sidebar-nav > ul > li:first-child {
+      border-top: none;
+      padding-top: 0;
+      margin-top: 0;
+    }
     .sidebar .search input, .sidebar .search input::placeholder { color: #333 !important; }
     /* 1레벨 헤더는 링크가 없어 클릭으로 펼칠 수 없으므로, 2레벨은 항상 표시 */
     .sidebar > .sidebar-nav > ul > li > ul { display: block !important; }
