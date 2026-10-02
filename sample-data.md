@@ -1,6 +1,6 @@
 # 샘플 데이터 (2023~2026, 가상)
 
-> [1.3 온톨로지 설계 방안](hotel-ontology.md)과 [에이전트](https://github.com/sseungjoo-gif/knowledge-base/tree/master/agent)가 함께 쓰는 **가상 샘플 데이터**입니다. 실제 워커힐 실적이 아니며, 추정/추론 데모를 위해 2023-01~2026-12(48개월) + 가상 고객 300명을 생성했습니다.
+> [1.3 온톨로지 설계](hotel-ontology.md)와 [에이전트](https://github.com/sseungjoo-gif/knowledge-base/tree/master/agent)가 함께 쓰는 **가상 샘플 데이터**입니다. 실제 워커힐 실적이 아니며, 추정/추론 데모를 위해 2023-01~2026-12(48개월) + 가상 고객 300명을 생성했습니다.
 
 [📥 워커힐_샘플데이터_2023-2026.xlsx 다운로드](워커힐_샘플데이터_2023-2026.xlsx ':ignore')
 
