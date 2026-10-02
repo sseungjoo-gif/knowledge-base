@@ -6,6 +6,7 @@ metrics.py(결정론적 계산)와 역할을 나눈다:
   함수가 없는 탐색형 질문은 이 Cypher 도구로 그래프를 직접 조회한다.
 """
 
+import json
 import re
 
 from anthropic import beta_tool
@@ -28,7 +29,7 @@ def _get_driver():
 
 
 @beta_tool
-def run_cypher_query(query: str) -> dict:
+def run_cypher_query(query: str) -> str:
     """그래프 DB에 읽기 전용 Cypher 쿼리를 실행한다 (쓰기 금지).
 
     그래프 스키마:
@@ -47,14 +48,14 @@ def run_cypher_query(query: str) -> dict:
         query: 읽기 전용 Cypher 쿼리 (MATCH/RETURN/WHERE/WITH 등만 — CREATE·MERGE·DELETE·SET 금지).
     """
     if _WRITE_KEYWORDS.search(query):
-        return {"error": "쓰기 쿼리는 허용되지 않습니다. MATCH/RETURN 중심의 읽기 쿼리만 쓸 수 있습니다."}
+        return json.dumps({"error": "쓰기 쿼리는 허용되지 않습니다. MATCH/RETURN 중심의 읽기 쿼리만 쓸 수 있습니다."}, ensure_ascii=False)
     try:
         with _get_driver().session() as session:
             result = session.run(query)
             rows = [dict(r) for r in result]
-            return {"row_count": len(rows), "rows": rows[:50]}
+            return json.dumps({"row_count": len(rows), "rows": rows[:50]}, ensure_ascii=False, default=str)
     except Exception as e:  # noqa: BLE001 — Cypher 문법 오류 등을 그대로 모델에게 보여준다
-        return {"error": str(e)}
+        return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
 def _fetch_lineage(node_id: str):
@@ -121,7 +122,7 @@ def _render_subtree(node_id, children_by_parent, node_props, prefix, is_last, de
 
 
 @beta_tool
-def get_judgment_basis(node_id: str) -> dict:
+def get_judgment_basis(node_id: str) -> str:
     """사용자가 "판단 근거를 알려줘"처럼 물으면, 방금 답변에 쓴 KPI/Dataset/Gap/BQ 등의 id로
     이 도구를 호출한다. 그 노드가 어떤 전략 질문(HQ)에서 내려왔는지(위쪽 경로)와, 그 판단이
     어떤 데이터·갭에 근거했는지(아래쪽 하위 트리)를 트리 구조 텍스트로 보여준다.
@@ -142,4 +143,4 @@ def get_judgment_basis(node_id: str) -> dict:
     for i, kid in enumerate(kids):
         lines.extend(_render_subtree(kid, children_by_parent, node_props, prefix, i == len(kids) - 1, depth=1))
 
-    return {"tree": "\n".join(lines)}
+    return "\n".join(lines)

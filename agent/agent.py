@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 
 from .tools import ALL_TOOLS
 
+# Windows 콘솔 기본 코드페이지(cp949)로는 "—" 같은 유니코드 문자를 못 찍어서 죽는다.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
