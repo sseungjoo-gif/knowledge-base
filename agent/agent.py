@@ -19,6 +19,16 @@ from .tools import ALL_TOOLS
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
+
+# 서버 도구. web_search(기본형)와 code_execution을 같이 쓴다 — 최신(동적 필터링) web_search는
+# 내부적으로 code_execution을 자체적으로 돌려서, 차트 생성용 code_execution과 같이 선언하면
+# "실행 환경이 두 개"로 모델이 혼동할 수 있다는 경고가 있어 기본형으로 고정했다.
+SERVER_TOOLS = [
+    {"type": "web_search_20250305", "name": "web_search", "max_uses": 3},
+    {"type": "code_execution_20260120", "name": "code_execution"},
+]
+
 SYSTEM_PROMPT = """\
 당신은 워커힐 호텔의 성과관리 추정/추론 에이전트입니다.
 1.3 온톨로지(hotel-ontology.md) 기준으로 동작하며, 아래 원칙을 반드시 지킵니다.
@@ -51,7 +61,36 @@ SYSTEM_PROMPT = """\
      해소해야 하는지, 지표 악화가 원인이면 어떤 조치를 검토할지 등)
 5. 추정이 필요한 질문(예: "다음 달엔 어떨까")에는 최근 추세(여러 기간 도구 호출 결과)를 근거로 들되,
    "추정"이라는 점과 그 근거를 명시적으로 밝힙니다. 근거 없는 숫자를 단정적으로 말하지 않습니다.
+6. 해결방법(제안)에 **향후 추정**을 항상 같이 넣습니다 — 지금 추세가 이어진다면 다음 달/다음 분기가
+   어떻게 될지, 어떤 조치를 하면 어떻게 달라질지를 "추정"이라고 밝히고 근거(어떤 기간 데이터를
+   봤는지)와 함께 제시합니다.
+7. 해결방법·advice에 외부 맥락(날씨·뉴스·시장 동향 등)이 실제로 도움이 될 질문이면 web_search
+   도구로 찾아보고 근거로 씁니다. 호텔 성과 자체는 내부 데이터로 설명하고, web_search는 "왜
+   외부 환경이 이렇게 영향을 줬는지"를 보강할 때만 보조적으로 씁니다.
+8. 기간·부문 등을 비교하는 숫자가 2개 이상이면, 말로만 나열하지 말고 code_execution(matplotlib)으로
+   막대·꺾은선 차트를 그려서 보여줍니다. 생성된 이미지 파일은 저장되고, 어디에 저장됐는지 답변에
+   알려줍니다. 비교 항목이 2~3개뿐이고 추이가 중요하지 않으면 표로 대체해도 됩니다.
 """
+
+
+def _save_generated_files(client, message) -> None:
+    for block in message.content:
+        if block.type != "bash_code_execution_tool_result":
+            continue
+        result = block.content
+        if getattr(result, "type", None) != "bash_code_execution_result" or not result.content:
+            continue
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        for file_ref in result.content:
+            if file_ref.type != "bash_code_execution_output":
+                continue
+            metadata = client.beta.files.retrieve_metadata(file_ref.file_id)
+            safe_name = os.path.basename(metadata.filename)
+            if not safe_name or safe_name in (".", ".."):
+                continue
+            out_path = os.path.join(OUTPUT_DIR, safe_name)
+            client.beta.files.download(file_ref.file_id).write_to_file(out_path)
+            print(f"\n[파일 저장] {out_path}")
 
 
 def ask(question: str) -> None:
@@ -61,16 +100,19 @@ def ask(question: str) -> None:
         model="claude-opus-5",
         max_tokens=16000,
         system=SYSTEM_PROMPT,
-        tools=ALL_TOOLS,
+        tools=ALL_TOOLS + SERVER_TOOLS,
         messages=[{"role": "user", "content": question}],
     )
 
     for message in runner:
+        _save_generated_files(client, message)
         for block in message.content:
             if block.type == "text":
                 print(block.text)
             elif block.type == "tool_use":
                 print(f"\n[도구 호출] {block.name}({block.input})")
+            elif block.type == "server_tool_use":
+                print(f"\n[서버 도구] {block.name}: {block.input}")
 
 
 def main() -> None:
