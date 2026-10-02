@@ -82,7 +82,8 @@ SYSTEM_PROMPT = """\
 """
 
 
-def _save_generated_files(client, message) -> None:
+def _save_generated_files(client, message) -> list:
+    saved = []
     for block in message.content:
         if block.type != "bash_code_execution_tool_result":
             continue
@@ -99,13 +100,14 @@ def _save_generated_files(client, message) -> None:
                 continue
             out_path = os.path.join(OUTPUT_DIR, safe_name)
             client.beta.files.download(file_ref.file_id).write_to_file(out_path)
-            print(f"\n[파일 저장] {out_path}")
+            saved.append(out_path)
+    return saved
 
 
-def ask(messages: list, question: str) -> list:
-    """messages(지난 대화 이력)에 question을 이어서 묻고, 갱신된 messages를 반환한다.
-    "판단 근거를 알려줘" 같은 후속 질문이 이전 답변(과 거기 쓰인 KPI/Gap id)을 참조할 수 있도록
-    매 호출마다 대화 전체를 이어간다."""
+def run_turn(messages: list, question: str) -> dict:
+    """messages(지난 대화 이력)에 question을 이어서 묻고,
+    {"messages": 갱신된 이력, "text": 최종 답변, "tool_calls": [...], "image_paths": [...]} 를 반환한다.
+    CLI(ask)와 Streamlit UI(app.py)가 둘 다 이 함수를 쓴다 — 실행 로직은 한 곳에만 있다."""
     client = anthropic.Anthropic()
     messages = messages + [{"role": "user", "content": question}]
 
@@ -117,22 +119,42 @@ def ask(messages: list, question: str) -> list:
         messages=messages,
     )
 
+    text_parts: list = []
+    tool_calls: list = []
+    image_paths: list = []
+
     for message in runner:
-        _save_generated_files(client, message)
+        image_paths.extend(_save_generated_files(client, message))
         for block in message.content:
             if block.type == "text":
-                print(block.text)
+                text_parts.append(block.text)
             elif block.type == "tool_use":
-                print(f"\n[도구 호출] {block.name}({block.input})")
+                tool_calls.append({"name": block.name, "input": block.input})
             elif block.type == "server_tool_use":
-                print(f"\n[서버 도구] {block.name}: {block.input}")
+                tool_calls.append({"name": block.name, "input": block.input})
 
         messages.append({"role": "assistant", "content": message.content})
         tool_response = runner.generate_tool_call_response()
         if tool_response is not None:
             messages.append(tool_response)
 
-    return messages
+    return {
+        "messages": messages,
+        "text": "\n".join(text_parts),
+        "tool_calls": tool_calls,
+        "image_paths": image_paths,
+    }
+
+
+def ask(messages: list, question: str) -> list:
+    """CLI용 — run_turn 결과를 터미널에 찍고 갱신된 messages만 반환한다."""
+    result = run_turn(messages, question)
+    for call in result["tool_calls"]:
+        print(f"\n[도구 호출] {call['name']}({call['input']})")
+    for path in result["image_paths"]:
+        print(f"\n[파일 저장] {path}")
+    print(result["text"])
+    return result["messages"]
 
 
 def main() -> None:
