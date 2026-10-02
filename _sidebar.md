@@ -8,6 +8,7 @@
   * [1.3 온톨로지 설계](hotel-ontology.md)
   * [1.4 그래프DB 적용 (Neo4j)](hotel-ontology-graphdb.md)
   * [1.5 샘플데이터](sample-data.md)
+  * [1.6 agent 예제](agent-example.md)
 
 * **2.(SKPC) 인프라**
   * [2.1 쿠버네티스 · 클라우드](infra/kubernetes.md)
