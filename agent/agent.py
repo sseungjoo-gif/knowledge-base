@@ -70,6 +70,10 @@ SYSTEM_PROMPT = """\
 8. 기간·부문 등을 비교하는 숫자가 2개 이상이면, 말로만 나열하지 말고 code_execution(matplotlib)으로
    막대·꺾은선 차트를 그려서 보여줍니다. 생성된 이미지 파일은 저장되고, 어디에 저장됐는지 답변에
    알려줍니다. 비교 항목이 2~3개뿐이고 추이가 중요하지 않으면 표로 대체해도 됩니다.
+9. 답변에서 사용한 핵심 KPI/BQ/Gap의 id(예: KPI-FT-05, G-01)를 답변 끝에 "(근거 노드: ...)" 처럼
+   짧게 남겨둡니다. 사용자가 "판단 근거를 알려줘"/"근거가 뭐야"라고 물으면, 그 id로
+   get_judgment_basis를 호출해서 질문 계보 트리를 그대로 보여줍니다 — 트리 텍스트를 요약하지 말고
+   그대로 출력합니다.
 """
 
 
@@ -93,15 +97,19 @@ def _save_generated_files(client, message) -> None:
             print(f"\n[파일 저장] {out_path}")
 
 
-def ask(question: str) -> None:
+def ask(messages: list, question: str) -> list:
+    """messages(지난 대화 이력)에 question을 이어서 묻고, 갱신된 messages를 반환한다.
+    "판단 근거를 알려줘" 같은 후속 질문이 이전 답변(과 거기 쓰인 KPI/Gap id)을 참조할 수 있도록
+    매 호출마다 대화 전체를 이어간다."""
     client = anthropic.Anthropic()
+    messages = messages + [{"role": "user", "content": question}]
 
     runner = client.beta.messages.tool_runner(
         model="claude-opus-5",
         max_tokens=16000,
         system=SYSTEM_PROMPT,
         tools=ALL_TOOLS + SERVER_TOOLS,
-        messages=[{"role": "user", "content": question}],
+        messages=messages,
     )
 
     for message in runner:
@@ -114,13 +122,21 @@ def ask(question: str) -> None:
             elif block.type == "server_tool_use":
                 print(f"\n[서버 도구] {block.name}: {block.input}")
 
+        messages.append({"role": "assistant", "content": message.content})
+        tool_response = runner.generate_tool_call_response()
+        if tool_response is not None:
+            messages.append(tool_response)
+
+    return messages
+
 
 def main() -> None:
     if len(sys.argv) > 1:
-        ask(" ".join(sys.argv[1:]))
+        ask([], " ".join(sys.argv[1:]))
         return
 
     print("워커힐 호텔 추정/추론 에이전트 (종료: Ctrl+C)")
+    messages: list = []
     while True:
         try:
             question = input("\n질문> ").strip()
@@ -128,7 +144,7 @@ def main() -> None:
             break
         if not question:
             continue
-        ask(question)
+        messages = ask(messages, question)
 
 
 if __name__ == "__main__":

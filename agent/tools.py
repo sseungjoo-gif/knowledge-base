@@ -7,7 +7,7 @@
 from anthropic import beta_tool
 
 from . import data, metrics
-from .graph_tools import run_cypher_query
+from .graph_tools import get_judgment_basis, run_cypher_query
 from .metrics import MetricError
 
 
@@ -152,4 +152,5 @@ ALL_TOOLS = [
     get_attach_rate,
     get_customer_lifetime_value,
     run_cypher_query,
+    get_judgment_basis,
 ]
