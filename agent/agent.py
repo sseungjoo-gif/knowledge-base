@@ -72,9 +72,9 @@ SYSTEM_PROMPT = """\
 7. 해결방법·advice에 외부 맥락(날씨·뉴스·시장 동향 등)이 실제로 도움이 될 질문이면 web_search
    도구로 찾아보고 근거로 씁니다. 호텔 성과 자체는 내부 데이터로 설명하고, web_search는 "왜
    외부 환경이 이렇게 영향을 줬는지"를 보강할 때만 보조적으로 씁니다.
-8. 기간·부문 등을 비교하는 숫자가 2개 이상이면, 말로만 나열하지 말고 code_execution(matplotlib)으로
-   막대·꺾은선 차트를 그려서 보여줍니다. 생성된 이미지 파일은 저장되고, 어디에 저장됐는지 답변에
-   알려줍니다. 비교 항목이 2~3개뿐이고 추이가 중요하지 않으면 표로 대체해도 됩니다.
+8. 비교할 항목이 **4개 이상이거나 추세(시간 흐름)가 중요한 경우에만** code_execution(matplotlib)으로
+   차트를 그립니다 — 호출 비용이 드는 도구이므로 꼭 필요할 때만 씁니다. 비교 항목이 2~3개뿐이면
+   표로 충분합니다. 차트를 그렸으면 생성된 이미지 파일이 어디 저장됐는지 답변에 알려줍니다.
 9. 답변에서 사용한 핵심 KPI/BQ/Gap의 id(예: KPI-FT-05, G-01)를 답변 끝에 "(근거 노드: ...)" 처럼
    짧게 남겨둡니다. 사용자가 "판단 근거를 알려줘"/"근거가 뭐야"라고 물으면, 그 id로
    get_judgment_basis를 호출해서 질문 계보 트리를 그대로 보여줍니다 — 트리 텍스트를 요약하지 말고
@@ -114,9 +114,15 @@ def _save_generated_files(client, message) -> list:
     return saved
 
 
+# Opus 5 요금 (1M 토큰당, 2026-06 기준) — 비용은 실시간 집계용 추정치이며 프롬프트 캐싱이 걸리면
+# 실제 청구액은 이보다 낮을 수 있다.
+_PRICE_PER_1M = {"input": 5.0, "output": 25.0}
+
+
 def run_turn(messages: list, question: str) -> dict:
     """messages(지난 대화 이력)에 question을 이어서 묻고,
-    {"messages": 갱신된 이력, "text": 최종 답변, "tool_calls": [...], "image_paths": [...]} 를 반환한다.
+    {"messages": 갱신된 이력, "text": 최종 답변, "tool_calls": [...], "image_paths": [...],
+     "usage": {"input_tokens", "output_tokens", "cost_usd"}} 를 반환한다.
     CLI(ask)와 Streamlit UI(app.py)가 둘 다 이 함수를 쓴다 — 실행 로직은 한 곳에만 있다."""
     client = anthropic.Anthropic()
     messages = messages + [{"role": "user", "content": question}]
@@ -132,6 +138,8 @@ def run_turn(messages: list, question: str) -> dict:
     text_parts: list = []
     tool_calls: list = []
     image_paths: list = []
+    input_tokens = 0
+    output_tokens = 0
 
     for message in runner:
         image_paths.extend(_save_generated_files(client, message))
@@ -143,16 +151,23 @@ def run_turn(messages: list, question: str) -> dict:
             elif block.type == "server_tool_use":
                 tool_calls.append({"name": block.name, "input": block.input})
 
+        if message.usage is not None:
+            input_tokens += message.usage.input_tokens
+            output_tokens += message.usage.output_tokens
+
         messages.append({"role": "assistant", "content": message.content})
         tool_response = runner.generate_tool_call_response()
         if tool_response is not None:
             messages.append(tool_response)
+
+    cost_usd = input_tokens / 1_000_000 * _PRICE_PER_1M["input"] + output_tokens / 1_000_000 * _PRICE_PER_1M["output"]
 
     return {
         "messages": messages,
         "text": "\n".join(text_parts),
         "tool_calls": tool_calls,
         "image_paths": image_paths,
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens, "cost_usd": cost_usd},
     }
 
 
@@ -164,6 +179,8 @@ def ask(messages: list, question: str) -> list:
     for path in result["image_paths"]:
         print(f"\n[파일 저장] {path}")
     print(result["text"])
+    u = result["usage"]
+    print(f"\n[이번 질문 비용] 입력 {u['input_tokens']:,} + 출력 {u['output_tokens']:,} 토큰 ≈ ${u['cost_usd']:.4f}")
     return result["messages"]
 
 
