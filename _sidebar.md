@@ -6,6 +6,7 @@
   * [1.1 매출·수익성 지표 흐름](hotel-metrics.md)
   * [1.2 HQ 전개표](hq-rollout.md)
   * [1.3 온톨로지 설계 방안](hotel-ontology.md)
+  * [1.3.1 그래프DB 적용 (Neo4j)](hotel-ontology-graphdb.md)
   * [1.4 샘플데이터](sample-data.md)
 
 * **2.(SKPC) 인프라**
