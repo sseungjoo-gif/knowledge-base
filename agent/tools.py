@@ -35,7 +35,11 @@ def list_available_data() -> str:
         "departments": list(next(iter(data.DEPARTMENTS_BY_PERIOD.values())).keys()),
         "customer_years": [2023, 2024, 2025, 2026],
         "customer_count": len(data.CUSTOMERS),
-        "note": "모든 데이터는 가상(synthetic)이며, 2026-12만 1.1 문서의 예시 숫자와 일치하도록 고정했습니다.",
+        "data_types": ["actual(실적)", "budget(계획)"],
+        "note": (
+            "모든 데이터는 가상(synthetic)이며, 2026-12만 1.1 문서의 예시 숫자와 일치하도록 고정했습니다. "
+            "실적 외에 같은 48개월 범위의 계획(budget) 데이터도 있습니다 — get_budget_vs_actual로 실적 대비 계획 비교를 할 수 있습니다."
+        ),
     })
 
 
@@ -146,6 +150,55 @@ def get_customer_lifetime_value(matched_only: bool = True) -> str:
     return _safe(metrics.clv, matched_only)
 
 
+@beta_tool
+def get_budget_vs_actual(period: str, metric: str, department: str = "", basis: str = "") -> str:
+    """실적(actual) 대비 계획(budget) 비교를 계산한다 — amount·pct 변동을 함께 반환한다.
+
+    Args:
+        period: "YYYY-MM" 형식, 2023-01 ~ 2026-12 범위.
+        metric: "room_sales"(OCC·ADR·RevPAR·NRevPAR), "departmental_profit"(부문 이익),
+            "gop_goppar"(GOP·GOPPAR) 중 하나.
+        department: metric="departmental_profit"일 때 필수. "Rooms"/"FB"/"Banquet"/"Other".
+        basis: metric="departmental_profit"일 때 필수. "preAllocation"(배부 전) 또는 "postAllocation"(배부 후).
+    """
+
+    def _calc():
+        if metric == "room_sales":
+            actual = {
+                "occ": round(metrics.occ(period), 4), "adr": round(metrics.adr(period)),
+                "revpar": round(metrics.revpar(period)), "nrevpar": round(metrics.nrevpar(period)),
+            }
+            budget = {
+                "occ": round(metrics.occ_budget(period), 4), "adr": round(metrics.adr_budget(period)),
+                "revpar": round(metrics.revpar_budget(period)), "nrevpar": round(metrics.nrevpar_budget(period)),
+            }
+            return {"actual": actual, "budget": budget, "variance": {k: metrics.variance(actual[k], budget[k]) for k in actual}}
+
+        if metric == "departmental_profit":
+            if not department or not basis:
+                raise MetricError("metric='departmental_profit'이면 department와 basis가 모두 필요합니다.")
+            actual = metrics.departmental_profit(period, department, basis)
+            budget = metrics.departmental_profit_budget(period, department, basis)
+            return {
+                "actual": actual, "budget": budget,
+                "variance": {"profit": metrics.variance(actual["profit"], budget["profit"]),
+                             "margin": metrics.variance(actual["margin"], budget["margin"])},
+            }
+
+        if metric == "gop_goppar":
+            actual = {**metrics.gop(period), "goppar": round(metrics.goppar(period))}
+            budget = {**metrics.gop_budget(period), "goppar": round(metrics.goppar_budget(period))}
+            return {
+                "actual": actual, "budget": budget,
+                "variance": {"gop": metrics.variance(actual["gop"], budget["gop"]),
+                             "goppar": metrics.variance(actual["goppar"], budget["goppar"])},
+            }
+
+        raise MetricError("metric은 'room_sales'/'departmental_profit'/'gop_goppar' 중 하나여야 합니다.")
+
+    return _safe(_calc)
+
+
 ALL_TOOLS = [
     list_available_data,
     get_room_sales_metrics,
@@ -157,6 +210,7 @@ ALL_TOOLS = [
     get_market_benchmark,
     get_attach_rate,
     get_customer_lifetime_value,
+    get_budget_vs_actual,
     run_cypher_query,
     get_judgment_basis,
 ]

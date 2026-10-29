@@ -198,6 +198,76 @@ def generate_market_benchmark(room_inventory):
     return out
 
 
+def generate_room_budget():
+    """월별 객실 '계획(budget)'. generate_room_inventory()와 같은 추세·계절성 곡선을 쓰되
+    노이즈와 2026-12 anchor 고정을 뺀 '매끈한' 버전이다 — 예산은 보통 기대 추세치로 세우고,
+    실적은 거기에 월별 변동(노이즈)이 더해진 결과라고 보는 게 현실적이기 때문이다.
+    이렇게 하면 실적과 계획이 같은 추세를 공유하면서도(연관성), 둘의 차이(변동)가 자연스럽게 생긴다."""
+    out = {}
+    for i, (y, m) in enumerate(MONTHS):
+        lbl = label(y, m)
+        days = _days_in_month(y, m)
+        available = ROOM_COUNT * days
+        t = i / ANCHOR_INDEX
+        season = MONTH_SEASONALITY[m]
+
+        occ = _lerp(t, 0.68, 0.80) * (0.85 + 0.15 * season)
+        occ = max(0.55, min(0.93, occ))
+        sold_rooms = round(available * occ)
+
+        adr = _lerp(t, 255_000, 300_000) * (0.9 + 0.1 * season)
+        revenue = round(sold_rooms * adr)
+
+        ota_ratio = max(0.25, min(0.65, _lerp(t, 0.35, 0.5833)))
+        ota_sold_rooms = round(sold_rooms * ota_ratio)
+        ota_revenue = round(ota_sold_rooms * adr)
+
+        out[lbl] = {
+            "days": days, "sold_rooms": sold_rooms, "revenue": revenue,
+            "ota_sold_rooms": ota_sold_rooms, "ota_revenue": ota_revenue,
+        }
+    return out
+
+
+def generate_department_budget(room_budget):
+    """부문별 매출·직접비 '계획'. generate_department_pl()과 동일한 비율 공식을
+    노이즈 없이 적용한다 — 계획은 room_budget에 표준 배부 비율을 곱해서 나온 값이고,
+    실적과의 차이는 결국 room_budget vs room_inventory(매출 쪽) 변동에서 전부 비롯된다."""
+    out = {}
+    for i, (y, m) in enumerate(MONTHS):
+        lbl = label(y, m)
+        t = i / ANCHOR_INDEX
+        rooms_revenue = room_budget[lbl]["revenue"]
+        ota_commission = room_budget[lbl]["ota_revenue"] * OTA_COMMISSION_RATE
+        rooms_direct_cost = round(ota_commission + ROOMS_FIXED_COST_RATIO * rooms_revenue)
+
+        fb_ratio = _lerp(t, 0.40, 0.5556)
+        banquet_ratio = _lerp(t, 0.15, 0.2222)
+        other_ratio = _lerp(t, 0.09, 0.1111)
+
+        fb_revenue = round(rooms_revenue * fb_ratio)
+        banquet_revenue = round(rooms_revenue * banquet_ratio)
+        other_revenue = round(rooms_revenue * other_ratio)
+
+        out[lbl] = {
+            "Rooms":   {"revenue": rooms_revenue, "direct_cost": rooms_direct_cost},
+            "FB":      {"revenue": fb_revenue, "direct_cost": round(fb_revenue * DEPT_COST_RATIO["FB"])},
+            "Banquet": {"revenue": banquet_revenue, "direct_cost": round(banquet_revenue * DEPT_COST_RATIO["Banquet"])},
+            "Other":   {"revenue": other_revenue, "direct_cost": round(other_revenue * DEPT_COST_RATIO["Other"])},
+        }
+    return out
+
+
+def generate_undistributed_budget(department_budget):
+    """미배부 공통비 '계획' = 부문 매출 계획 합계 × 카테고리별 고정 비율 (노이즈 없음)."""
+    out = {}
+    for y, m in MONTHS:
+        lbl = label(y, m)
+        total_revenue = sum(d["revenue"] for d in department_budget[lbl].values())
+        out[lbl] = {cat: round(total_revenue * ratio) for cat, ratio in UNDISTRIBUTED_RATIO.items()}
+    return out
+
+
 def generate_customers(n=300):
     customers = []
     for i in range(1, n + 1):
@@ -262,6 +332,11 @@ def build_all():
     undistributed = generate_undistributed_expense(department_pl)
     fb_cost = generate_fb_cost(department_pl)
     market_benchmark = generate_market_benchmark(room_inventory)
+
+    room_budget = generate_room_budget()
+    department_budget = generate_department_budget(room_budget)
+    undistributed_budget = generate_undistributed_budget(department_budget)
+
     customers = generate_customers()
     adr_by_year = {}
     for year in (2023, 2024, 2025, 2026):
@@ -275,6 +350,9 @@ def build_all():
         "undistributed_expense": undistributed,
         "fb_cost": fb_cost,
         "market_benchmark": market_benchmark,
+        "room_budget": room_budget,
+        "department_budget": department_budget,
+        "undistributed_budget": undistributed_budget,
         "customers": customers,
         "customer_usage": usage,
     }

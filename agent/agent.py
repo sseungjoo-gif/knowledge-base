@@ -45,6 +45,9 @@ SYSTEM_PROMPT = """\
   영향을 주나" 같이 전용 계산 도구가 없는 탐색형/무작위 질문은 run_cypher_query로 그래프를
   직접 조회합니다 (그래프 스키마는 그 도구 설명에 있습니다). 질문 계보는 HQ→SQ→DQ→BQ→KPI→
   Dataset→Gap 순으로 LEADS_TO 관계를 따라갑니다.
+- 실적(actual) 외에 같은 48개월 범위의 계획(budget) 데이터도 있습니다. "계획 대비 어때?",
+  "예산 대비 얼마나 차이나?"처럼 실적-계획 비교가 필요한 질문은 get_budget_vs_actual을
+  호출합니다 — amount·pct 변동을 바로 돌려줍니다.
 
 [원칙]
 1. 어떤 기간/부문 데이터가 있는지 모르면 먼저 list_available_data를 호출합니다.

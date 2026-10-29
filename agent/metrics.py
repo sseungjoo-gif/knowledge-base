@@ -188,6 +188,88 @@ def attach_rate(year: int, matched_only: bool = True) -> dict:
     }
 
 
+def _budget_inventory(period: str) -> dict:
+    if period not in data.ROOM_BUDGET:
+        raise MetricError(f"'{period}' 기간의 계획(budget) 데이터가 없습니다.")
+    return data.ROOM_BUDGET[period]
+
+
+def occ_budget(period: str) -> float:
+    inv = _budget_inventory(period)
+    return inv["sold_rooms"] / available_rooms(period)
+
+
+def adr_budget(period: str) -> float:
+    inv = _budget_inventory(period)
+    return inv["revenue"] / inv["sold_rooms"]
+
+
+def revpar_budget(period: str) -> float:
+    inv = _budget_inventory(period)
+    return inv["revenue"] / available_rooms(period)
+
+
+def nrevpar_budget(period: str) -> float:
+    inv = _budget_inventory(period)
+    commission = inv["ota_revenue"] * data.OTA_COMMISSION_RATE
+    return (inv["revenue"] - commission) / available_rooms(period)
+
+
+def _budget_departments(period: str) -> dict:
+    if period not in data.DEPARTMENTS_BUDGET_BY_PERIOD:
+        raise MetricError(f"'{period}' 기간의 부문 손익 계획(budget) 데이터가 없습니다.")
+    return data.DEPARTMENTS_BUDGET_BY_PERIOD[period]
+
+
+def departmental_profit_budget(period: str, department: str, basis: str = "preAllocation") -> dict:
+    """departmental_profit()의 계획(budget) 버전 — 같은 로직을 계획 데이터에 적용한다."""
+    depts = _budget_departments(period)
+    if department not in depts:
+        raise MetricError(f"'{department}' 부문이 없습니다. 사용 가능: {list(depts)}")
+    if basis not in ("preAllocation", "postAllocation"):
+        raise MetricError("basis는 'preAllocation' 또는 'postAllocation' 중 하나여야 합니다.")
+
+    dept = depts[department]
+    pre_profit = dept["revenue"] - dept["direct_cost"]
+
+    if basis == "preAllocation":
+        return {"basis": basis, "profit": pre_profit, "margin": round(pre_profit / dept["revenue"], 4)}
+
+    total_revenue = sum(d["revenue"] for d in depts.values())
+    total_undistributed = sum(data.UNDISTRIBUTED_BUDGET_BY_PERIOD[period].values())
+    allocated_share = total_undistributed * (dept["revenue"] / total_revenue)
+    post_profit = pre_profit - allocated_share
+    return {
+        "basis": basis,
+        "profit": round(post_profit),
+        "margin": round(post_profit / dept["revenue"], 4),
+        "allocated_undistributed_expense": round(allocated_share),
+    }
+
+
+def gop_budget(period: str) -> dict:
+    """gop()의 계획(budget) 버전."""
+    depts = _budget_departments(period)
+    total_profit = sum(d["revenue"] - d["direct_cost"] for d in depts.values())
+    total_undistributed = sum(data.UNDISTRIBUTED_BUDGET_BY_PERIOD[period].values())
+    return {
+        "departmental_profit_sum": total_profit,
+        "undistributed_expense": total_undistributed,
+        "gop": total_profit - total_undistributed,
+    }
+
+
+def goppar_budget(period: str) -> float:
+    return gop_budget(period)["gop"] / available_rooms(period)
+
+
+def variance(actual_value: float, budget_value: float) -> dict:
+    """실적-계획 변동(amount·pct)을 계산한다. budget_value가 0이면 pct는 None."""
+    amount = actual_value - budget_value
+    pct = round(amount / budget_value, 4) if budget_value else None
+    return {"amount": round(amount, 4), "pct": pct}
+
+
 def clv(matched_only: bool = True) -> dict:
     """고객 전체가치(2023~2026 누적) — 객실+F&B 매출 합계를 고객별로 더한 평균.
 
