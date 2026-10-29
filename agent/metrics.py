@@ -72,6 +72,14 @@ def _departments(period: str) -> dict:
     return data.DEPARTMENTS_BY_PERIOD[period]
 
 
+def department_revenue(period: str) -> dict:
+    """부문별(Rooms·FB·Banquet·Other) 매출을 한 번에 돌려준다 — '부문별 매출' 질문은
+    부문마다 basis를 정해야 하는 departmental_profit과 달리 이걸로 바로 답한다."""
+    depts = _departments(period)
+    revenue_by_dept = {name: d["revenue"] for name, d in depts.items()}
+    return {**revenue_by_dept, "total": sum(revenue_by_dept.values())}
+
+
 def departmental_profit(period: str, department: str, basis: str = "preAllocation") -> dict:
     """온톨로지 DepartmentalProfit — basis가 preAllocation/postAllocation 둘 다 명시적으로 요구된다 (함정 ②)."""
     depts = _departments(period)

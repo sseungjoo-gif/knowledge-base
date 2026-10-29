@@ -72,6 +72,19 @@ def get_channel_mix_trend(period: str) -> str:
 
 
 @beta_tool
+def get_department_revenue(period: str) -> str:
+    """부문별(Rooms·FB·Banquet·Other) 매출을 한 번의 호출로 전부 돌려준다.
+
+    "부문별 매출이 얼마야?" 같은 질문은 이 도구를 쓴다 — 부문 "이익"을 물으면
+    (배부 전/후를 구분해야 하는) get_departmental_profit을 대신 쓴다.
+
+    Args:
+        period: "YYYY-MM" 형식, 2023-01 ~ 2026-12 범위.
+    """
+    return _safe(metrics.department_revenue, period)
+
+
+@beta_tool
 def get_departmental_profit(period: str, department: str, basis: str) -> str:
     """부문 이익을 배부 전/후 중 선택해서 계산한다. 반드시 basis를 명시해야 한다.
 
@@ -203,6 +216,7 @@ ALL_TOOLS = [
     list_available_data,
     get_room_sales_metrics,
     get_channel_mix_trend,
+    get_department_revenue,
     get_departmental_profit,
     get_gop_and_goppar,
     get_flow_through,
